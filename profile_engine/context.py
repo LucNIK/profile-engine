@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Shared runtime context handed to every module."""
 
 from __future__ import annotations
@@ -36,6 +39,9 @@ class Context:
         (self.out_dir / STATE_FILE).write_text(json.dumps(self.state, indent=2, sort_keys=True))
 
     def write(self, name: str, svg: str) -> None:
+        notice = self.config.copyright.replace("--", "–").strip()
+        if notice:  # an XML comment before the root element: invisible, but travels with the file
+            svg = f"<!-- {notice} -->\n{svg}"
         (self.out_dir / name).write_text(svg, encoding="utf-8")
 
 

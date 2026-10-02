@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Animated hero title: each line types itself out, holds, then erases — pure CSS, no JS.
 
 Honours `prefers-reduced-motion` by showing the first line statically.

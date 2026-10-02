@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Weekly AI summary: reads the week's commits and asks a language model to write
 "What I built this week" in the first person.
 
@@ -9,7 +12,7 @@ from __future__ import annotations
 
 import os
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from ..context import Context
 from ..github import GitHub
@@ -67,7 +70,11 @@ def ask_model(model: str, token: str, commits: list[dict]) -> str:
                 {"role": "user", "content": f"Commits from the last 7 days:\n{listing}"},
             ],
         },
-        headers={"Authorization": f"Bearer {token}"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
         timeout=40,
         retries=1,
     )
@@ -81,7 +88,8 @@ def collect(ctx: Context) -> dict:
     cfg = ctx.config
     key = week_key(ctx)
     cached = ctx.state.get("weekly")
-    if cached and cached.get("week") == key and not os.environ.get("FORCE_WEEKLY"):
+    if cached and cached.get("week") == key and not os.environ.get("FORCE_WEEKLY") \
+            and not _should_retry_ai(ctx, cached):
         return cached
     start = ctx.now - timedelta(days=7)
     if ctx.offline:
@@ -96,19 +104,37 @@ def collect(ctx: Context) -> dict:
             commits = []
     commits = [c for c in commits if c["repo"].split("/")[-1] not in cfg.weekly_exclude_repos]
     stats = stats_for(commits)
-    summary, source = fallback_summary(stats), "auto"
-    if commits and ctx.token and not ctx.offline:
-        try:
-            summary, source = ask_model(cfg.weekly_model, ctx.token, commits), cfg.weekly_model
-        except (FetchError, KeyError, IndexError, ValueError) as exc:
-            print(f"[weekly] model: {exc} — using deterministic summary")
+    summary, source, ai_error = fallback_summary(stats), "auto", None
+    if commits and not ctx.offline:
+        if not ctx.token:
+            ai_error = "no GITHUB_TOKEN available"
+        else:
+            try:
+                summary, source = ask_model(cfg.weekly_model, ctx.token, commits), cfg.weekly_model
+            except (FetchError, KeyError, IndexError, ValueError) as exc:
+                ai_error = str(exc)[:400]
+        if ai_error:
+            print(f"[weekly] model: {ai_error} — using deterministic summary")
     return {
+        "ai_error": ai_error,
+        "ai_attempt": ctx.now.isoformat(),
         "week": key,
         "range": [start.date().isoformat(), ctx.now.date().isoformat()],
         "summary": summary,
         "source": source,
         **stats,
     }
+
+
+def _should_retry_ai(ctx: Context, cached: dict) -> bool:
+    """Retry the model every 6 hours while this week's summary is still the non-AI fallback."""
+    if ctx.offline or cached.get("source") != "auto" or not cached.get("commits"):
+        return False
+    try:
+        last = datetime.fromisoformat(cached["ai_attempt"])
+    except (KeyError, ValueError):
+        return True
+    return ctx.now - last >= timedelta(hours=6)
 
 
 def sample_commits() -> list[dict]:

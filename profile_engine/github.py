@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Minimal GitHub REST client."""
 
 from __future__ import annotations
@@ -17,6 +20,15 @@ class GitHub:
 
     def user(self, login: str) -> dict:
         return fetch_json(f"{API}/users/{quote(login)}", headers=self.headers)
+
+    def repos(self, login: str, limit: int = 30) -> list[dict]:
+        """Public repositories owned by `login`, most recently pushed first."""
+        return fetch_json(f"{API}/users/{quote(login)}/repos?type=owner&sort=pushed&per_page={limit}",
+                          headers=self.headers)
+
+    def events(self, login: str, limit: int = 60) -> list[dict]:
+        """Recent public events performed by `login`."""
+        return fetch_json(f"{API}/users/{quote(login)}/events/public?per_page={limit}", headers=self.headers)
 
     def commits_since(self, login: str, since_date: str, limit: int = 200) -> list[dict]:
         """Commits authored by `login` since YYYY-MM-DD, newest first (default branches only)."""

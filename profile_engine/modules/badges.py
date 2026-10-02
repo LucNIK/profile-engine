@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Link badges (website, followers) drawn in the profile's own style."""
 
 from __future__ import annotations

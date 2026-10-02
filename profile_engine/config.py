@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Loads profile.toml and fills in sensible defaults."""
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ class Config:
     user: str
     name: str
     website: str = ""
+    copyright: str = ""
     font: str = "IBM Plex Sans"
     timezone: str = "UTC"
     light_accent: str | None = None
@@ -32,6 +36,12 @@ class Config:
     weekly_enabled: bool = True
     weekly_model: str = "openai/gpt-4.1-mini"
     weekly_exclude_repos: list[str] = field(default_factory=list)
+    activity_enabled: bool = True
+    activity_repos: int = 3
+    activity_events: int = 5
+    activity_posts: int = 3
+    activity_rss: str = ""
+    activity_exclude: list[str] = field(default_factory=list)
 
 
 def load(path: str | Path) -> Config:
@@ -41,12 +51,14 @@ def load(path: str | Path) -> Config:
     hero = raw.get("hero", {})
     ticker = raw.get("ticker", {})
     weekly = raw.get("weekly", {})
+    activity = raw.get("activity", {})
     if "user" not in profile:
         raise ValueError("profile.user is required in the config file")
     return Config(
         user=profile["user"],
         name=profile.get("name", profile["user"]),
         website=profile.get("website", ""),
+        copyright=profile.get("copyright", ""),
         timezone=profile.get("timezone", "UTC"),
         font=theme.get("font", "IBM Plex Sans"),
         light_accent=theme.get("light_accent"),
@@ -64,4 +76,10 @@ def load(path: str | Path) -> Config:
         weekly_enabled=weekly.get("enabled", True),
         weekly_model=weekly.get("model", "openai/gpt-4.1-mini"),
         weekly_exclude_repos=weekly.get("exclude_repos", []),
+        activity_enabled=activity.get("enabled", True),
+        activity_repos=activity.get("repos", 3),
+        activity_events=activity.get("events", 5),
+        activity_posts=activity.get("posts", 3),
+        activity_rss=activity.get("rss", ""),
+        activity_exclude=activity.get("exclude_repos", []),
     )

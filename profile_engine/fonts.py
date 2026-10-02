@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Embeds IBM Plex Sans into every SVG.
 
 GitHub serves README images through a proxy that forbids external requests from inside an SVG,
@@ -50,27 +53,42 @@ class FontKit:
         except FetchError as exc:
             print(f"[fonts] {exc} — falling back to system fonts")
             return
+        downloaded: dict[str, bytes] = {}
         for w, url in _latin_sources(css).items():
-            try:
-                data = fetch(url, headers={"User-Agent": BROWSER_UA})
-            except FetchError as exc:
-                print(f"[fonts] {exc}")
-                continue
+            # Variable fonts are served as one file for every weight: download it once.
+            if url not in downloaded:
+                try:
+                    downloaded[url] = fetch(url, headers={"User-Agent": BROWSER_UA})
+                except FetchError as exc:
+                    print(f"[fonts] {exc}")
+                    continue
             self.cache_dir.mkdir(parents=True, exist_ok=True)
-            self._cache_path(w).write_bytes(data)
-            self.files[w] = data
+            self._cache_path(w).write_bytes(downloaded[url])
+            self.files[w] = downloaded[url]
 
     def css(self, weights: tuple[int, ...]) -> str:
-        rules = []
+        """@font-face rules for the requested weights, embedding each distinct file only once.
+
+        When several weights share the same bytes it is a variable font, declared with a weight range.
+        """
+        groups: dict[bytes, list[int]] = {}
         for w in weights:
             data = self.files.get(w)
             if data:
-                b64 = base64.b64encode(data).decode()
-                rules.append(
-                    f"@font-face{{font-family:'{self.family}';font-weight:{w};"
-                    f"src:url(data:font/woff2;base64,{b64}) format('woff2')}}"
-                )
+                groups.setdefault(data, []).append(w)
+        rules = []
+        for data, ws in groups.items():
+            weight = str(ws[0]) if len(ws) == 1 and self._is_static(data) else "100 900"
+            b64 = base64.b64encode(data).decode()
+            rules.append(
+                f"@font-face{{font-family:'{self.family}';font-weight:{weight};"
+                f"src:url(data:font/woff2;base64,{b64}) format('woff2')}}"
+            )
         return "".join(rules)
+
+    def _is_static(self, data: bytes) -> bool:
+        """A file shared by several cached weights is a variable font."""
+        return sum(1 for d in self.files.values() if d == data) == 1
 
 
 def _latin_sources(css: str) -> dict[int, str]:

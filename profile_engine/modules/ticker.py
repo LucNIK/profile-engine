@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Live markets card: crypto prices with 24h sparklines + Ethereum gas, refreshed every run.
 
 Sources need no API key: CoinGecko for prices, public Ethereum JSON-RPC nodes for gas.

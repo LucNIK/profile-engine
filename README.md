@@ -1,9 +1,10 @@
+<!-- Copyright (c) 2026 John Luke NIKABOU (LucNIK) — MIT License -->
 <div align="center">
 
 # NIK Profile Engine
 
 **A self-hosted GitHub Action that renders a living, day/night themed GitHub profile.**
-Animated hero · live crypto & Ethereum gas ticker · weekly AI-written summary · zero external image services.
+Animated hero · activity feed · live crypto & Ethereum gas ticker · weekly AI-written summary · zero external image services.
 
 [Live demo → github.com/LucNIK](https://github.com/LucNIK) · [Configuration](#configuration) · [Modules](#modules)
 
@@ -38,7 +39,8 @@ flowchart LR
     CG[(CoinGecko)] --> E
     RPC[(Ethereum RPC)] --> E
     GM[(GitHub Models)] --> E
-    E -->|hero · headings · focus · badges · ticker · weekly| S[light + dark SVGs]
+    RSS[(RSS / Atom)] --> E
+    E -->|hero · headings · focus · badges · activity · ticker · weekly| S[light + dark SVGs]
     S --> O[output branch]
     O --> R[README via &lt;picture&gt;]
 ```
@@ -98,7 +100,7 @@ Then reference the images in your README, one `<picture>` per visual:
 | --- | --- | --- |
 | `config` | `profile.toml` | Path to the configuration file |
 | `output_dir` | `dist` | Where SVGs and `engine-state.json` are written |
-| `modules` | `all` | Subset: `hero, headings, focus, badges, ticker, weekly` |
+| `modules` | `all` | Subset: `hero, headings, focus, badges, activity, ticker, weekly` |
 | `github_token` | `github.token` | GitHub API + GitHub Models token |
 | `python_version` | `3.12` | Python used to run the engine |
 
@@ -110,6 +112,7 @@ Then reference the images in your README, one `<picture>` per visual:
 | `headings` | `heading-<slug>-{light,dark}.svg` — numbered section titles | on every run |
 | `focus` | `focus-{light,dark}.svg` — icon cards | on every run |
 | `badges` | `badge-website-*`, `badge-followers-*` | on every run |
+| `activity` | `activity-{light,dark}.svg` — recent projects, latest public events, optional RSS posts | on every run |
 | `ticker` | `ticker-{light,dark}.svg` — prices, 24h change, sparklines, gas | every run (hourly) |
 | `weekly` | `weekly-{light,dark}.svg` — AI summary of the last 7 days of commits | once per ISO week |
 
@@ -140,6 +143,11 @@ title = "AI / ML"
 lines = ["Models · data pipelines", "intelligent applications"]
 icon = "network"            # network, candles, ethereum, cloud, gas, spark, globe, users, coin
 
+[activity]
+repos = 3
+events = 5
+rss = ""                    # optional: "https://example.com/rss.xml"
+
 [ticker]
 currency = "usd"
 gas = true
@@ -156,6 +164,12 @@ exclude_repos = []
 python -m profile_engine --config examples/profile.toml --out dist --offline   # sample data, no network
 python -m unittest -v
 ```
+
+## Changelog
+
+- **1.1.0** — `activity` module (recent projects, public events, RSS/Atom posts); variable fonts embedded once
+  (≈50% lighter SVGs); detailed GitHub Models errors stored in the engine state, with an automatic retry every 6 hours.
+- **1.0.0** — first release: hero, headings, focus, badges, ticker, weekly AI summary.
 
 ## License
 

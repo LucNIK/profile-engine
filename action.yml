@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 name: "NIK Profile Engine"
 description: "Self-hosted, day/night themed GitHub profile: animated hero, live crypto & gas ticker, weekly AI summary."
 author: "LucNIK"

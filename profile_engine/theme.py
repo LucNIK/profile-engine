@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Design tokens. Every visual is rendered twice: once per theme."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Section headings: numbered, letter-spaced, with accent rules — `01 ── ABOUT ──`."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 John Luke NIKABOU (LucNIK)
+
 """Hand-drawn 24×24 line icons — no icon font, no CDN, nothing that can break."""
 
 from __future__ import annotations
