@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-USER_AGENT = "profile-engine/1.2 (+https://github.com/LucNIK/profile-engine)"
+USER_AGENT = "profile-engine/1.2.1 (+https://github.com/LucNIK/profile-engine)"
 
 
 class FetchError(RuntimeError):

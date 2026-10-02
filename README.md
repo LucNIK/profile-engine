@@ -63,7 +63,7 @@ jobs:
   render:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Restore previous output (keeps engine state and caches)
         run: |
@@ -75,7 +75,7 @@ jobs:
           config: profile.toml
           output_dir: dist
 
-      - uses: crazy-max/ghaction-github-pages@v4
+      - uses: crazy-max/ghaction-github-pages@v5
         with:
           target_branch: output
           build_dir: dist
@@ -129,7 +129,7 @@ jobs:
     if: startsWith(github.event.issue.title, 'connect4')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: |
           mkdir -p dist
           git fetch --depth=1 origin output && git archive FETCH_HEAD | tar -x -C dist || true
@@ -137,7 +137,7 @@ jobs:
         with:
           modules: game
           game_process_issues: "true"   # plays every open move issue, replies and closes it
-      - uses: crazy-max/ghaction-github-pages@v4
+      - uses: crazy-max/ghaction-github-pages@v5
         with: { target_branch: output, build_dir: dist, jekyll: false }
         env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
 ```
@@ -214,6 +214,7 @@ python -m unittest -v
 
 ## Changelog
 
+- **1.2.1** — Node 24 runtime (`setup-python@v6`), commit policy and enforcing git hooks, `SECURITY.md`.
 - **1.2.0** — `game` module: Connect Four against a minimax AI, played by visitors through issues; GitHub Models
   call hardened (redirect and non-JSON detection, fallback endpoint); action inputs passed via environment only.
 - **1.1.0** — `activity` module (recent projects, public events, RSS/Atom posts); variable fonts embedded once
