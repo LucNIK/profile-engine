@@ -1,0 +1,48 @@
+name: "NIK Profile Engine"
+description: "Self-hosted, day/night themed GitHub profile: animated hero, live crypto & gas ticker, weekly AI summary."
+author: "LucNIK"
+
+branding:
+  icon: "cpu"
+  color: "yellow"
+
+inputs:
+  config:
+    description: "Path to the profile.toml configuration file"
+    required: false
+    default: "profile.toml"
+  output_dir:
+    description: "Directory where the SVGs and engine state are written"
+    required: false
+    default: "dist"
+  modules:
+    description: "Comma-separated modules to render (hero, headings, focus, badges, ticker, weekly) or 'all'"
+    required: false
+    default: "all"
+  github_token:
+    description: "Token for the GitHub API and GitHub Models (needs `models: read` for the AI summary)"
+    required: false
+    default: ${{ github.token }}
+  python_version:
+    description: "Python version used to run the engine"
+    required: false
+    default: "3.12"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Render profile
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        python -m profile_engine \
+          --config "${{ inputs.config }}" \
+          --out "${{ inputs.output_dir }}" \
+          --modules "${{ inputs.modules }}"
