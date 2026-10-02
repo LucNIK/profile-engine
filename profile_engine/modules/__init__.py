@@ -3,7 +3,7 @@
 
 """Renderable modules. Each exposes `render(ctx)` and writes `<name>-light.svg` / `<name>-dark.svg`."""
 
-from . import activity, badges, focus, headings, hero, ticker, weekly
+from . import activity, badges, focus, game, headings, hero, ticker, weekly
 
 REGISTRY = {
     "hero": hero.render,
@@ -11,6 +11,7 @@ REGISTRY = {
     "focus": focus.render,
     "badges": badges.render,
     "activity": activity.render,
+    "game": game.render,
     "ticker": ticker.render,
     "weekly": weekly.render,
 }

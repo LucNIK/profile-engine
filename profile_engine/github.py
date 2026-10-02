@@ -30,6 +30,20 @@ class GitHub:
         """Recent public events performed by `login`."""
         return fetch_json(f"{API}/users/{quote(login)}/events/public?per_page={limit}", headers=self.headers)
 
+    def open_issues(self, repo: str) -> list[dict]:
+        """Open issues of `repo`, oldest first (pull requests excluded)."""
+        items = fetch_json(f"{API}/repos/{repo}/issues?state=open&sort=created&direction=asc&per_page=100",
+                           headers=self.headers)
+        return [i for i in items if "pull_request" not in i]
+
+    def comment(self, repo: str, number: int, body: str) -> None:
+        fetch_json(f"{API}/repos/{repo}/issues/{number}/comments", payload={"body": body},
+                   headers=self.headers, retries=1)
+
+    def close(self, repo: str, number: int, reason: str = "completed") -> None:
+        fetch_json(f"{API}/repos/{repo}/issues/{number}", payload={"state": "closed", "state_reason": reason},
+                   headers=self.headers, method="PATCH", retries=1)
+
     def commits_since(self, login: str, since_date: str, limit: int = 200) -> list[dict]:
         """Commits authored by `login` since YYYY-MM-DD, newest first (default branches only)."""
         query = quote(f"author:{login} author-date:>={since_date}")

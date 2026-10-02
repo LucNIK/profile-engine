@@ -2,7 +2,7 @@
 # Copyright (c) 2026 John Luke NIKABOU (LucNIK)
 
 name: "NIK Profile Engine"
-description: "Self-hosted, day/night themed GitHub profile: animated hero, live crypto & gas ticker, weekly AI summary."
+description: "Self-hosted, day/night GitHub profile: live crypto ticker, AI weekly summary, Connect Four vs AI."
 author: "LucNIK"
 
 branding:
@@ -26,6 +26,18 @@ inputs:
     description: "Token for the GitHub API and GitHub Models (needs `models: read` for the AI summary)"
     required: false
     default: ${{ github.token }}
+  game_move:
+    description: "Title of a Connect Four move issue (e.g. 'connect4|drop|4'); empty for a normal render"
+    required: false
+    default: ""
+  game_player:
+    description: "GitHub login of the player who opened the move issue"
+    required: false
+    default: ""
+  game_process_issues:
+    description: "Set to 'true' to play every open Connect Four move issue, reply to it and close it"
+    required: false
+    default: "false"
   python_version:
     description: "Python version used to run the engine"
     required: false
@@ -41,11 +53,15 @@ runs:
 
     - name: Render profile
       shell: bash
+      # Inputs are passed through the environment, never interpolated into the script:
+      # game_move comes from an issue title that anyone can write.
       env:
         PYTHONPATH: ${{ github.action_path }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: |
-        python -m profile_engine \
-          --config "${{ inputs.config }}" \
-          --out "${{ inputs.output_dir }}" \
-          --modules "${{ inputs.modules }}"
+        ENGINE_CONFIG: ${{ inputs.config }}
+        ENGINE_OUT: ${{ inputs.output_dir }}
+        ENGINE_MODULES: ${{ inputs.modules }}
+        ENGINE_GAME_MOVE: ${{ inputs.game_move }}
+        ENGINE_GAME_PLAYER: ${{ inputs.game_player }}
+        ENGINE_GAME_PROCESS_ISSUES: ${{ inputs.game_process_issues }}
+      run: python -m profile_engine --config "$ENGINE_CONFIG" --out "$ENGINE_OUT" --modules "$ENGINE_MODULES"

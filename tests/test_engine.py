@@ -17,7 +17,8 @@ from zoneinfo import ZoneInfo
 from profile_engine import __main__ as cli
 from profile_engine.config import load
 from profile_engine.fonts import _latin_sources
-from profile_engine.modules import activity, ticker, weekly
+from profile_engine import connect4 as c4
+from profile_engine.modules import activity, game, ticker, weekly
 from profile_engine.svg import text_width, wrap
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,7 +37,7 @@ class EngineRunTest(unittest.TestCase):
         self.assertEqual(cli.main(["--config", str(EXAMPLE), "--out", str(self.out), "--offline"]), 0)
         svgs = sorted(self.out.glob("*.svg"))
         names = {p.name for p in svgs}
-        for base in ["hero", "focus", "ticker", "weekly", "activity", "badge-website", "badge-followers",
+        for base in ["hero", "focus", "ticker", "weekly", "activity", "game", "game-col-1", "game-col-7", "badge-website", "badge-followers",
                      "heading-about", "heading-this-week"]:
             self.assertIn(f"{base}-light.svg", names)
             self.assertIn(f"{base}-dark.svg", names)
@@ -156,6 +157,97 @@ class FontTest(unittest.TestCase):
             css = FontKit("IBM Plex Sans", Path(tmp), offline=True).css((400, 600, 700))
             self.assertEqual(css.count("@font-face"), 1)
             self.assertIn("font-weight:100 900", css)
+
+
+class Connect4Test(unittest.TestCase):
+    def test_move_parsing_is_strict(self) -> None:
+        self.assertEqual(c4.parse_move("connect4|drop|4"), 3)
+        self.assertEqual(c4.parse_move(" Connect4 | DROP | 1 "), 0)
+        for bad in ["connect4|drop|8", "connect4|drop|0", "connect4|drop|4; rm -rf /", "$(id)", "", None]:
+            self.assertIsNone(c4.parse_move(bad))
+
+    def test_win_detection_in_all_directions(self) -> None:
+        horizontal = c4.empty_board()
+        for col in range(4):
+            horizontal = c4.drop(horizontal, col, c4.HUMAN)
+        self.assertEqual(c4.winner(horizontal), c4.HUMAN)
+        vertical = c4.empty_board()
+        for _ in range(4):
+            vertical = c4.drop(vertical, 6, c4.AI)
+        self.assertEqual(c4.winner(vertical), c4.AI)
+        diagonal = c4.empty_board()
+        for col, player in [(0, 1), (1, 2), (1, 1), (2, 2), (2, 2), (2, 1), (3, 2), (3, 2), (3, 2), (3, 1)]:
+            diagonal = c4.drop(diagonal, col, player)
+        self.assertEqual(c4.winning_line(diagonal), [(0, 0), (1, 1), (2, 2), (3, 3)])
+
+    def test_engine_wins_or_blocks(self) -> None:
+        threat = c4.empty_board()
+        for col in (0, 1, 2):
+            threat = c4.drop(threat, col, c4.HUMAN)
+        self.assertEqual(c4.best_move(threat, depth=4), 3)
+        chance = c4.drop(c4.drop(c4.drop(threat, 6, c4.AI), 6, c4.AI), 6, c4.AI)
+        self.assertEqual(c4.best_move(chance, depth=4), 6)
+
+    def test_full_column_is_rejected(self) -> None:
+        board = c4.empty_board()
+        for i in range(c4.ROWS):
+            board = c4.drop(board, 0, 1 + i % 2)
+        with self.assertRaises(ValueError):
+            c4.drop(board, 0, c4.HUMAN)
+
+
+class GamePlayTest(unittest.TestCase):
+    def _ctx(self, tmp: str):
+        from profile_engine.context import build
+        return build(load(EXAMPLE), Path(tmp), offline=True)
+
+    def test_move_updates_board_history_and_players(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._ctx(tmp)
+            reply = game.play(ctx, "connect4|drop|4", "octo-cat")
+            state = ctx.state["connect4"]
+            self.assertIn("@octo-cat", reply)
+            self.assertEqual(sum(len(c) for c in state["board"]), 2)  # visitor + engine
+            self.assertEqual(state["players"], {"octo-cat": 1})
+            self.assertEqual(state["history"][0]["col"], 4)
+
+    def test_untrusted_inputs_never_reach_the_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._ctx(tmp)
+            reply = game.play(ctx, "connect4|drop|2", "<img src=x onerror=alert(1)>")
+            self.assertNotIn("<img", reply)
+            self.assertIn("@visitor", reply)
+            bad = game.play(ctx, "<script>alert(1)</script>", "octo-cat")
+            self.assertNotIn("<script>", bad)
+            self.assertEqual(sum(len(c) for c in ctx.state["connect4"]["board"]), 2)
+
+    def test_finished_game_restarts_on_next_move(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ctx = self._ctx(tmp)
+            current = game.new_game(ctx.state)
+            current.update({"over": True, "result": "ai"})
+            game.play(ctx, "connect4|drop|1", "octo-cat")
+            self.assertEqual(ctx.state["connect4"]["game_no"], 2)
+            self.assertFalse(ctx.state["connect4"]["over"])
+
+    def test_issue_queue_is_processed_oldest_first(self) -> None:
+        issues = [
+            {"number": 1, "title": "connect4|drop|4", "user": {"login": "alice"}},
+            {"number": 2, "title": "Bug report", "user": {"login": "bob"}},
+            {"number": 3, "title": "connect4|drop|9", "user": {"login": "carol"}},
+        ]
+        fake = mock.Mock()
+        fake.open_issues.return_value = issues
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(game, "GitHub", return_value=fake):
+            ctx = self._ctx(tmp)
+            self.assertEqual(game.process_issues(ctx), 2)
+        self.assertEqual([c.args[1] for c in fake.comment.call_args_list], [1, 3])
+        fake.close.assert_any_call("LucNIK/LucNIK", 1, "completed")
+        fake.close.assert_any_call("LucNIK/LucNIK", 3, "not_planned")
+
+    def test_issue_link_is_prefilled(self) -> None:
+        link = game.issue_link("LucNIK/LucNIK", 4)
+        self.assertTrue(link.startswith("https://github.com/LucNIK/LucNIK/issues/new?title=connect4%7Cdrop%7C4"))
 
 
 class LayoutTest(unittest.TestCase):

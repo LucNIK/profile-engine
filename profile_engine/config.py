@@ -42,6 +42,9 @@ class Config:
     activity_posts: int = 3
     activity_rss: str = ""
     activity_exclude: list[str] = field(default_factory=list)
+    game_enabled: bool = True
+    game_repo: str = ""
+    game_depth: int = 6
 
 
 def load(path: str | Path) -> Config:
@@ -52,6 +55,7 @@ def load(path: str | Path) -> Config:
     ticker = raw.get("ticker", {})
     weekly = raw.get("weekly", {})
     activity = raw.get("activity", {})
+    game = raw.get("game", {})
     if "user" not in profile:
         raise ValueError("profile.user is required in the config file")
     return Config(
@@ -82,4 +86,7 @@ def load(path: str | Path) -> Config:
         activity_posts=activity.get("posts", 3),
         activity_rss=activity.get("rss", ""),
         activity_exclude=activity.get("exclude_repos", []),
+        game_enabled=game.get("enabled", True),
+        game_repo=game.get("repo") or f"{profile['user']}/{profile['user']}",
+        game_depth=max(1, min(int(game.get("depth", 6)), 8)),
     )

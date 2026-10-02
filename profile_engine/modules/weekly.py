@@ -21,7 +21,12 @@ from ..net import FetchError, fetch_json
 from ..svg import card, document, text, text_width, wrap
 from ..theme import Theme
 
-MODELS_ENDPOINT = "https://models.github.ai/inference/chat/completions"
+# GitHub Models endpoints, tried in order. The second one is the original Azure-hosted inference
+# endpoint, which expects bare model names ("gpt-4.1-mini" instead of "openai/gpt-4.1-mini").
+MODELS_ENDPOINTS = (
+    ("https://models.github.ai/inference/chat/completions", False),
+    ("https://models.inference.ai.azure.com/chat/completions", True),
+)
 WIDTH = 840
 PAD = 28
 BODY_SIZE = 15
@@ -59,29 +64,28 @@ def fallback_summary(stats: dict) -> str:
 
 def ask_model(model: str, token: str, commits: list[dict]) -> str:
     listing = "\n".join(f"- [{c['repo'].split('/')[-1]}] {c['message']}" for c in commits[:80])
-    response = fetch_json(
-        MODELS_ENDPOINT,
-        payload={
-            "model": model,
-            "temperature": 0.4,
-            "max_tokens": 160,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Commits from the last 7 days:\n{listing}"},
-            ],
-        },
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-        timeout=40,
-        retries=1,
-    )
-    content = response["choices"][0]["message"]["content"].strip().strip('"')
-    if not content:
-        raise ValueError("empty model response")
-    return content
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Commits from the last 7 days:\n{listing}"},
+    ]
+    errors = []
+    for endpoint, bare_names in MODELS_ENDPOINTS:
+        name = model.split("/", 1)[-1] if bare_names else model
+        try:
+            response = fetch_json(
+                endpoint,
+                payload={"model": name, "temperature": 0.4, "max_tokens": 160, "messages": messages},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=40,
+                retries=1,
+            )
+            content = response["choices"][0]["message"]["content"].strip().strip('"')
+            if content:
+                return content
+            errors.append(f"{endpoint}: empty completion")
+        except (FetchError, KeyError, IndexError, TypeError) as exc:
+            errors.append(str(exc))
+    raise FetchError(" | ".join(errors))
 
 
 def collect(ctx: Context) -> dict:
